@@ -56,6 +56,11 @@ const createAuditEvent = (actor: string, action: string, claimId?: string, reaso
   return { id: randomUUID(), timestamp: new Date().toISOString(), actor, action, claimId, reason, before, after };
 };
 
+app.get('/', (_req, res) => res.json({
+  status: 'ok',
+  message: 'Expense Claim Review API is running.',
+}));
+
 app.get('/api/health', (_req, res) => res.json({
   ok: !config.mongoConfigured || isDatabaseConnected(),
   mode: config.demoMode ? 'demo' : config.geminiApiKey ? 'live' : 'unavailable',

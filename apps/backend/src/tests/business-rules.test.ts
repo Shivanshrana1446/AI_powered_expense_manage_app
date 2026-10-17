@@ -58,6 +58,17 @@ afterAll(() => {
 });
 
 describe('Expense claim policy review backend', () => {
+  it('reports API process status at the root without claiming database health', async () => {
+    const response = await request(app).get('/');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      status: 'ok',
+      message: 'Expense Claim Review API is running.',
+    });
+    expect(response.body).not.toHaveProperty('database');
+  });
+
   it('hides provider identifiers in public claim and diagnostic responses', async () => {
     const claim = memoryStore.getState().claims[0];
     claim.aiReview = {
