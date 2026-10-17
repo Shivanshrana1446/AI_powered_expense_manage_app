@@ -99,7 +99,8 @@ describe('Expense claim policy review backend', () => {
   });
 
   it('allows configured frontend origins and rejects other browser origins', async () => {
-    const allowedOrigin = config.frontendOrigins[0];
+    const allowedOrigin = 'https://ai-powered-expense-manage-app.vercel.app';
+    expect(config.frontendOrigins).toContain(allowedOrigin);
     const allowed = await request(app).get('/api/health').set('Origin', allowedOrigin);
     const rejected = await request(app).get('/api/health').set('Origin', 'https://not-allowed.invalid');
 

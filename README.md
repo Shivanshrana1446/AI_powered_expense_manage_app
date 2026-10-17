@@ -67,7 +67,7 @@ If startup reports Atlas error code `8000`, Atlas rejected the database credenti
 
 The root `render.yaml` configures a Node web service rooted at `apps/backend`. Render installs the backend lockfile dependencies, compiles TypeScript to `apps/backend/dist/server.js`, and starts that file through `npm start`. Set `MONGO_URI`, `GEMINI_API_KEY`, and `FRONTEND_URL` in the Render service dashboard when prompted; keep the Atlas URI and Gemini key in Render's secret environment settings. The Blueprint generates `JWT_SECRET`, but the current demo role-header authorization does not use JWT authentication.
 
-Set `FRONTEND_URL` to the Vercel deployment's origin (for example, `https://your-app.vercel.app`) so the backend CORS policy permits the deployed browser app. In the Vercel project settings, set `VITE_API_BASE_URL` to the Render backend API base URL ending in `/api` (for example, `https://your-service.onrender.com/api`) and redeploy the frontend. The frontend defaults to the Vite development proxy when this variable is not set. Atlas must allow connections from Render; configure Atlas Network Access appropriately for your deployment before starting the service.
+The backend CORS policy allows `https://ai-powered-expense-manage-app.vercel.app` and any origins configured in `FRONTEND_URL`. In the Vercel project settings, set `VITE_API_URL` to `https://ai-powered-expense-manage-app.onrender.com` (or the same URL ending in `/api`) and redeploy the frontend. The frontend normalizes this to a single `/api` prefix; when unset, it uses the Vite development proxy. Atlas must allow connections from Render; configure Atlas Network Access appropriately for your deployment before starting the service.
 
 ## Seed demo data
 

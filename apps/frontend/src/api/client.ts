@@ -1,8 +1,13 @@
 import axios from 'axios';
 import type { ApiHealth, DashboardMetrics, ExpenseClaim, PolicySection } from '../types';
 
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim().replace(/\/+$/, '');
+const apiBaseUrl = configuredApiUrl
+  ? `${configuredApiUrl.replace(/\/api$/i, '')}/api`
+  : '/api';
+
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL: apiBaseUrl,
   headers: { 'Content-Type': 'application/json', 'x-user-role': 'reviewer' },
 });
 

@@ -32,9 +32,13 @@ const mongoUriOverridden = Boolean(
   && processMongoUriValue !== mongoUriFromFile,
 );
 const frontendUrl = (process.env.FRONTEND_URL || '').trim();
-const frontendOrigins = frontendUrl
+const configuredFrontendOrigins = frontendUrl
   ? frontendUrl.split(',').map((origin) => origin.trim().replace(/\/+$/, '')).filter(Boolean)
   : ['http://localhost:5173', 'http://localhost:4173'];
+const frontendOrigins = [...new Set([
+  'https://ai-powered-expense-manage-app.vercel.app',
+  ...configuredFrontendOrigins,
+])];
 
 const getMongoUriMetadata = (uri: string) => {
   if (!uri) return { valid: false, protocol: '', hostname: '' };
