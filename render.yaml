@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: expense-claim-policy-backend
+    runtime: node
+    rootDir: apps/backend
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: DEMO_MODE
+        value: "false"
