@@ -20,7 +20,7 @@ An empty, ignored `apps/backend/.env` is included for local use, so you can skip
 
 ```dotenv
 PORT=4000
-MONGODB_URI=
+MONGO_URI=
 GEMINI_API_KEY=
 DEMO_MODE=true
 JWT_SECRET=
@@ -28,7 +28,7 @@ JWT_SECRET=
 
 Keep secrets in `apps/backend/.env` or the backend process environment. Never put them in a frontend `.env` file or commit them. The checked-in template deliberately contains no API key.
 
-For MongoDB Atlas, paste the connection URI copied from Atlas into `MONGODB_URI` (usually it starts with `mongodb+srv://`). Replace any username/password placeholders in that URI with the database user's credentials; URL-encode special characters in the password. In Atlas, also allow your current IP address in Network Access. Add your Gemini API key to `GEMINI_API_KEY` and set `DEMO_MODE=false` to request live AI. `PORT`, `MONGODB_URI`, `GEMINI_API_KEY`, `DEMO_MODE`, and `JWT_SECRET` are the backend settings currently read by this project; adding unrelated variables will not enable unsupported services.
+For MongoDB Atlas, paste the connection URI copied from Atlas into `MONGO_URI` (usually it starts with `mongodb+srv://`). Replace any username/password placeholders in that URI with the database user's credentials; URL-encode special characters in the password. In Atlas, also allow your current IP address in Network Access. Add your Gemini API key to `GEMINI_API_KEY` and set `DEMO_MODE=false` to request live AI. `PORT`, `MONGO_URI`, `GEMINI_API_KEY`, `DEMO_MODE`, and `JWT_SECRET` are the backend settings currently read by this project; adding unrelated variables will not enable unsupported services. `MONGODB_URI` remains supported as an alias for existing local deployments.
 
 Install dependencies:
 
@@ -57,15 +57,21 @@ npm run dev
 
 Open `http://localhost:5173`. The frontend proxies API requests to `http://localhost:4000`.
 
-The backend loads `apps/backend/.env` relative to its own configuration module, so it uses the same file when started from the backend directory or from the project root. A `MONGODB_URI` set in the backend process environment takes precedence over the file; startup logs which source is active and, when configured, only the URI username, cluster hostname, and database name. The password and full URI are never logged. `MONGO_URI` is not a supported variable name and causes a clear configuration error if used without `MONGODB_URI`.
+The backend loads `apps/backend/.env` relative to its own configuration module, so it uses the same file when started from the backend directory or from the project root. A `MONGO_URI` set in the backend process environment takes precedence over the file; startup logs which source is active and, when configured, only the cluster hostname and database name. Credentials and the full URI are never logged.
 
-When `MONGODB_URI` is configured, the backend requires a successful database connection before starting. If Atlas rejects authentication, denies database permissions, or cannot be reached, startup fails rather than accepting changes that would not persist. Startup reports a sanitized connection category and nested driver code where available; it does not log the raw driver error. With `MONGODB_URI` empty, it uses in-memory demo storage and displays that status in the UI.
+When `MONGO_URI` is configured, the backend requires a successful database connection before starting. If Atlas rejects authentication, denies database permissions, or cannot be reached, startup fails rather than accepting changes that would not persist. Startup reports a sanitized connection category and nested driver code where available; it does not log the raw driver error. With `MONGO_URI` empty, it uses in-memory demo storage and displays that status in the UI.
 
 If startup reports Atlas error code `8000`, Atlas rejected the database credentials/access. Verify the database user under Atlas **Security → Database Access**, reset its password, and grant read/write permission on the target database. Use that database user's password, not the Atlas website login password. URL-encode reserved characters in the password in the URI. Network/IP access failures usually show up as connection timeouts instead.
 
+## Deploy the backend to Render and frontend to Vercel
+
+The root `render.yaml` configures a Node web service rooted at `apps/backend`. Render installs the backend lockfile dependencies, compiles TypeScript to `apps/backend/dist/server.js`, and starts that file through `npm start`. Set `MONGO_URI`, `GEMINI_API_KEY`, and `FRONTEND_URL` in the Render service dashboard when prompted; keep the Atlas URI and Gemini key in Render's secret environment settings. The Blueprint generates `JWT_SECRET`, but the current demo role-header authorization does not use JWT authentication.
+
+Set `FRONTEND_URL` to the Vercel deployment's origin (for example, `https://your-app.vercel.app`) so the backend CORS policy permits the deployed browser app. In the Vercel project settings, set `VITE_API_BASE_URL` to the Render backend API base URL ending in `/api` (for example, `https://your-service.onrender.com/api`) and redeploy the frontend. The frontend defaults to the Vite development proxy when this variable is not set. Atlas must allow connections from Render; configure Atlas Network Access appropriately for your deployment before starting the service.
+
 ## Seed demo data
 
-The backend seeds its in-memory demo data automatically at startup. For persistent seed data, start MongoDB, set `MONGODB_URI` in `apps/backend/.env`, then run:
+The backend seeds its in-memory demo data automatically at startup. For persistent seed data, start MongoDB, set `MONGO_URI` in `apps/backend/.env`, then run:
 
 ```powershell
 Set-Location apps/backend

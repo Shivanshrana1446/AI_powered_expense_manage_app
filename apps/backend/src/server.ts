@@ -76,14 +76,14 @@ const getMongoFailureDetails = (error: unknown) => {
 const startServer = async () => {
   try {
     console.info(
-      `MongoDB configuration: MONGODB_URI ${config.mongoConfigured ? 'is set' : 'is not set'} `
+      `MongoDB configuration: MONGO_URI ${config.mongoConfigured ? 'is set' : 'is not set'} `
       + `(source: ${config.mongoUriSource}${config.mongoUriOverridden ? ', process environment overrides apps/backend/.env' : ''}).`,
     );
     if (config.mongoConfigured) {
-      const { valid, username, hostname, database } = config.mongoUriMetadata;
+      const { valid, hostname, database } = config.mongoUriMetadata;
       console.info(
-        `MongoDB target: valid=${valid}; username=${username || '(missing)'}; `
-        + `host=${hostname || '(missing)'}; database=${database || '(default)'}.`,
+        `MongoDB target: valid=${valid}; host=${hostname || '(missing)'}; `
+        + `database=${database || '(default)'}.`,
       );
     }
 
@@ -105,7 +105,7 @@ const startServer = async () => {
       console.warn(`MongoDB connection failed (${errorType}); using in-memory demo storage. Changes will not persist across restarts.`);
     }
     await seedDatabase();
-    const server = app.listen(config.port, () => {
+    const server = app.listen(config.port, '0.0.0.0', () => {
       console.log(`Expense claim policy review assistant running on port ${config.port}`);
     });
     server.on('error', (error: NodeJS.ErrnoException) => {

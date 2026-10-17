@@ -33,6 +33,19 @@ const statusColors: Record<string, string> = {
   missing_receipt: '#f97316',
 };
 
+const getReviewSourceLabel = (source?: string, pendingLabel = 'Not reviewed') => {
+  switch (source) {
+    case 'mock':
+      return 'Demo review';
+    case 'automated':
+      return 'Automated review';
+    case 'unavailable':
+      return 'Unavailable';
+    default:
+      return pendingLabel;
+  }
+};
+
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
@@ -247,7 +260,7 @@ function App() {
               <th className="p-4">Category</th>
               <th className="p-4">Amount</th>
               <th className="p-4">Receipt</th>
-              <th className="p-4">AI Review</th>
+              <th className="p-4">Policy Review</th>
               <th className="p-4">Decision</th>
               <th className="p-4">Action</th>
             </tr>
@@ -261,7 +274,7 @@ function App() {
                 <td className="p-4">{claim.category}</td>
                 <td className="p-4">{claim.currency} {claim.amount}</td>
                 <td className="p-4">{claim.receiptAvailable ? 'Yes' : 'No'}</td>
-                <td className="p-4"><div className="flex flex-col gap-1"><span className="rounded-full bg-slate-100 px-2 py-1 text-xs">{claim.aiReview?.reviewStatus || claim.status}</span><span className="text-[10px] uppercase tracking-wide text-slate-500">{claim.aiReview?.source === 'mock' ? 'Mock AI' : claim.aiReview?.source === 'gemini' ? 'Gemini' : claim.aiReview?.source === 'openai' ? 'OpenAI (legacy)' : claim.aiReview?.source === 'unavailable' ? 'Unavailable' : 'Pending'}</span></div></td>
+                <td className="p-4"><div className="flex flex-col gap-1"><span className="rounded-full bg-slate-100 px-2 py-1 text-xs">{claim.aiReview?.reviewStatus || claim.status}</span><span className="text-[10px] uppercase tracking-wide text-slate-500">{getReviewSourceLabel(claim.aiReview?.source, 'Pending')}</span></div></td>
                 <td className="p-4"><span className="rounded-full px-2 py-1 text-xs" style={{ backgroundColor: `${statusColors[claim.status] || '#e2e8f0'}22`, color: statusColors[claim.status] || '#334155' }}>{claim.status}</span></td>
                 <td className="p-4"><button onClick={() => setSelectedClaim(claim)} className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white">Details</button></td>
               </tr>
@@ -392,7 +405,7 @@ function App() {
                   <h3 className="text-xl font-semibold">{selectedClaim.id}</h3>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => reviewClaim(selectedClaim.id)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">Run AI review</button>
+                  <button onClick={() => reviewClaim(selectedClaim.id)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">Run policy review</button>
                   <button onClick={() => performDecision('approve', selectedClaim.id)} className="rounded-xl bg-success px-3 py-2 text-sm text-white">Approve</button>
                   <button onClick={() => performDecision('reject', selectedClaim.id, 'Reason for rejection')} className="rounded-xl bg-danger px-3 py-2 text-sm text-white">Reject</button>
                 </div>
@@ -407,9 +420,9 @@ function App() {
                 <div className="space-y-2">
                   <p><strong>Status:</strong> {selectedClaim.status}</p>
                   <p><strong>Receipt:</strong> {selectedClaim.receiptAvailable ? 'Available' : 'Missing'}</p>
-                  <p><strong>AI confidence:</strong> {selectedClaim.aiReview?.confidence ?? 'Not reviewed yet'}</p>
-                  <p><strong>AI source:</strong> {selectedClaim.aiReview?.source === 'mock' ? 'Mock AI (demo)' : selectedClaim.aiReview?.source === 'gemini' ? 'Gemini' : selectedClaim.aiReview?.source === 'openai' ? 'OpenAI (legacy)' : selectedClaim.aiReview?.source === 'unavailable' ? 'Unavailable' : 'Not reviewed yet'}</p>
-                  <p><strong>Summary:</strong> {selectedClaim.aiReview?.summary || 'No AI summary yet.'}</p>
+                  <p><strong>Review confidence:</strong> {selectedClaim.aiReview?.confidence ?? 'Not reviewed yet'}</p>
+                  <p><strong>Review method:</strong> {getReviewSourceLabel(selectedClaim.aiReview?.source)}</p>
+                  <p><strong>Summary:</strong> {selectedClaim.aiReview?.summary || 'No review summary yet.'}</p>
                 </div>
               </div>
               <div className="mt-5">
@@ -425,8 +438,8 @@ function App() {
                 </ul>
               </div>
               <div className="mt-5">
-                <h4 className="mb-2 font-semibold">AI policy findings</h4>
-                <p className="mb-2 text-sm text-slate-500">Source: {selectedClaim.aiReview?.source === 'mock' ? 'Mock AI (demo)' : selectedClaim.aiReview?.source === 'gemini' ? 'Gemini' : selectedClaim.aiReview?.source === 'openai' ? 'OpenAI (legacy)' : selectedClaim.aiReview?.source === 'unavailable' ? 'Unavailable' : 'Not reviewed'}</p>
+                <h4 className="mb-2 font-semibold">Automated policy findings</h4>
+                <p className="mb-2 text-sm text-slate-500">Review method: {getReviewSourceLabel(selectedClaim.aiReview?.source)}</p>
                 <ul className="space-y-2 text-sm text-slate-600">
                   {(selectedClaim.aiReview?.findings || []).map((finding, index) => (
                     <li key={index} className="rounded-xl border border-slate-200 p-3">

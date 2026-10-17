@@ -117,21 +117,21 @@ const classifyGeminiError = (error: unknown): GeminiProviderError => {
 const geminiFailureMessage = (failure: GeminiProviderError) => {
   switch (failure.category) {
     case 'invalid_api_key':
-      return 'Gemini rejected GEMINI_API_KEY. Add a valid Gemini API key to apps/backend/.env and restart the backend.';
+      return 'The automated review service could not authenticate. Contact your administrator.';
     case 'access_denied':
-      return 'Gemini denied access to this API or model. Check the key restrictions and Google AI project configuration.';
+      return 'The automated review service is not authorized. Contact your administrator.';
     case 'quota_or_rate_limit':
-      return 'Gemini quota or rate limit reached. Check the Google AI project quota and billing settings.';
+      return 'The automated review service is temporarily rate-limited. Try again later.';
     case 'model_unavailable':
-      return 'No supported Gemini text-generation model is available to this API key.';
+      return 'No automated review model is currently available. Contact your administrator.';
     case 'request_rejected':
-      return 'Gemini rejected the request. Check the selected model and request configuration.';
+      return 'The automated review service could not process this request. Try again later.';
     case 'provider_unavailable':
-      return 'Gemini is temporarily unavailable. Retry the AI review later.';
+      return 'The automated review service is temporarily unavailable. Try again later.';
     case 'invalid_response':
-      return 'Gemini returned an empty or invalid review response; reviewer attention is required.';
+      return 'The automated review could not be completed; reviewer attention is required.';
     case 'network_error':
-      return 'Gemini could not be reached. Check the network connection and retry.';
+      return 'The automated review service could not be reached. Try again later.';
   }
 };
 
@@ -314,7 +314,7 @@ export const performAIReview = async (claim: ExpenseClaim, policies: PolicySecti
   }
 
   if (!apiKey) {
-    return unavailableReview(claim, 'AI provider unavailable because GEMINI_API_KEY is not configured.');
+    return unavailableReview(claim, 'Automated review is not configured. Contact your administrator.');
   }
 
   try {
@@ -354,7 +354,7 @@ export const performAIReview = async (claim: ExpenseClaim, policies: PolicySecti
       source: 'gemini',
     });
     if (!validated.success) {
-      return unavailableReview(claim, 'Gemini returned a response that did not match the required review format.');
+      return unavailableReview(claim, 'The automated review could not be validated; reviewer attention is required.');
     }
     const review = validated.data;
 

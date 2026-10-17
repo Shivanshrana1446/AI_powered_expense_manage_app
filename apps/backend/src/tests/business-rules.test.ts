@@ -58,6 +58,43 @@ afterAll(() => {
 });
 
 describe('Expense claim policy review backend', () => {
+  it('hides provider identifiers in public claim and diagnostic responses', async () => {
+    const claim = memoryStore.getState().claims[0];
+    claim.aiReview = {
+      suggestedCategory: claim.category,
+      confidence: 0.9,
+      classificationUncertain: false,
+      reviewStatus: 'potentially_compliant',
+      summary: 'Automated policy review completed.',
+      findings: [],
+      missingInformation: [],
+      clarificationQuestions: [],
+      limitations: [],
+      policySectionIds: [],
+      generatedAt: new Date().toISOString(),
+      source: 'gemini',
+    };
+    memoryStore.saveClaim(claim);
+
+    const claimResponse = await request(app).get(`/api/claims/${claim.id}`);
+    expect(claimResponse.body.data.aiReview.source).toBe('automated');
+    expect(claim.aiReview.source).toBe('gemini');
+
+    config.geminiApiKey = 'test-only-key';
+    geminiMocks.list.mockResolvedValue(availableGeminiModels);
+    geminiMocks.generateContent.mockResolvedValue({ text: 'OK' });
+    const diagnosticResponse = await request(app).get('/api/health/ai');
+    expect(diagnosticResponse.body.provider).toBe('automated');
+  });
+
+  it('allows configured frontend origins and rejects other browser origins', async () => {
+    const allowedOrigin = config.frontendOrigins[0];
+    const allowed = await request(app).get('/api/health').set('Origin', allowedOrigin);
+    const rejected = await request(app).get('/api/health').set('Origin', 'https://not-allowed.invalid');
+
+    expect(allowed.headers['access-control-allow-origin']).toBe(allowedOrigin);
+    expect(rejected.headers['access-control-allow-origin']).toBeUndefined();
+  });
   it('validates required claim fields', () => {
     const findings = validateClaimInput({ claimant: '', category: 'Travel', amount: 0, currency: 'USD', description: 'test' });
     expect(findings.some((f) => f.code === 'required_claimant')).toBe(true);
@@ -266,7 +303,7 @@ describe('Expense claim policy review backend', () => {
     geminiMocks.list.mockRejectedValueOnce({ status: 401, message: 'secret must not be returned' });
     const review = await performAIReview(memoryStore.getState().claims[3], memoryStore.getState().policies);
     expect(review.source).toBe('unavailable');
-    expect(review.summary).toContain('valid Gemini API key');
+    expect(review.summary).toContain('automated review service could not authenticate');
     expect(review.summary).not.toContain('test-only-key');
     expect(review.summary).not.toContain('secret must not be returned');
   });
@@ -277,7 +314,7 @@ describe('Expense claim policy review backend', () => {
     geminiMocks.list.mockRejectedValueOnce({ status: 429, message: 'quota details must not be returned' });
     const review = await performAIReview(memoryStore.getState().claims[3], memoryStore.getState().policies);
     expect(review.source).toBe('unavailable');
-    expect(review.summary).toContain('Gemini quota or rate limit');
+    expect(review.summary).toContain('automated review service is temporarily rate-limited');
     expect(review.summary).not.toContain('test-only-key');
   });
 
@@ -307,7 +344,7 @@ describe('Expense claim policy review backend', () => {
     expect(response.body).toEqual({
       configured: false,
       connected: false,
-      provider: 'gemini',
+      provider: 'automated',
       category: 'missing_api_key',
       statusCode: 503,
     });
@@ -323,7 +360,7 @@ describe('Expense claim policy review backend', () => {
     expect(response.body).toEqual({
       configured: true,
       connected: false,
-      provider: 'gemini',
+      provider: 'automated',
       category: 'invalid_api_key',
       statusCode: 401,
     });
@@ -338,7 +375,7 @@ describe('Expense claim policy review backend', () => {
 
     const response = await request(app).get('/api/health/ai');
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({ configured: true, connected: true, provider: 'gemini' });
+    expect(response.body).toEqual({ configured: true, connected: true, provider: 'automated' });
     expect(geminiMocks.generateContent).toHaveBeenCalledWith(expect.objectContaining({
       model: 'models/gemini-2.5-flash',
       contents: 'Reply with exactly: OK',

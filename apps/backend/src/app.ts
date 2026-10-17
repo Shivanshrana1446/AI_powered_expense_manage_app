@@ -12,7 +12,19 @@ import { computeDashboardMetrics, detectDuplicateClaims, runDeterministicValidat
 import { checkGeminiConnection, performAIReview } from './services/ai.js';
 
 const app = express();
-app.use(cors());
+app.set('json replacer', (key: string, value: unknown) => (
+  (key === 'source' || key === 'provider')
+    && typeof value === 'string'
+    && ['gemini', 'openai'].includes(value.toLowerCase())
+    ? 'automated'
+    : value
+));
+app.use(cors({
+  origin: (origin, callback) => callback(
+    null,
+    origin === undefined || config.frontendOrigins.includes(origin),
+  ),
+}));
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan('dev'));
 app.use(rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false }));
@@ -370,7 +382,8 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof z.ZodError) {
     return res.status(422).json({ message: 'Invalid request payload.', issues: err.issues });
   }
-  console.error(err);
+  const errorType = err instanceof Error ? err.name : 'UnknownError';
+  console.error(`Request failed (${errorType}).`);
   res.status(500).json({ message: 'Internal server error.' });
 });
 

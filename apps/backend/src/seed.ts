@@ -71,7 +71,8 @@ if (process.argv.includes('--run')) {
   connectDatabase()
     .then(seedDatabase)
     .catch((error) => {
-      console.error('Failed to seed database', error);
+      const errorType = error instanceof Error ? error.name : 'UnknownError';
+      console.error(`Failed to seed database (${errorType}).`);
       process.exitCode = 1;
     })
     .finally(async () => {
