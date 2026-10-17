@@ -2,6 +2,7 @@ import app from './app.js';
 import { config } from './config.js';
 import { seedDatabase } from './seed.js';
 import { connectDatabase } from './models.js';
+import { lookup, resolveSrv, resolveTxt } from 'node:dns/promises';
 
 const readErrorProperty = (value: unknown, key: string): unknown => (
   typeof value === 'object' && value !== null
@@ -47,10 +48,14 @@ const getMongoFailureDetails = (error: unknown) => {
   const selected = details.find(({ code }) => code === '8000')
     ?? details.find(({ code }) => code === '13')
     ?? details.find(({ code }) => code.startsWith('ERR_SSL_') || code.startsWith('ERR_TLS_'))
+    ?? details.find(({ message }) => /ERR_(?:SSL|TLS)_[A-Z0-9_]+/i.test(message))
     ?? details.find(({ code }) => ['ENOTFOUND', 'EAI_AGAIN', 'ETIMEDOUT', 'ECONNREFUSED', 'ECONNRESET'].includes(code))
     ?? details.find(({ name }) => name === 'MongoParseError')
     ?? details.find(({ name }) => name !== '');
-  const code = selected?.code || 'none';
+  const messageTlsCode = details
+    .map(({ message }) => message.match(/ERR_(?:SSL|TLS)_[A-Z0-9_]+/i)?.[0])
+    .find((value) => value !== undefined);
+  const code = selected?.code || messageTlsCode?.toUpperCase() || 'none';
   const material = details.map(({ message }) => message).join(' ');
   const category = code === '8000' || material.includes('authentication failed')
     ? 'authentication-rejected'
@@ -73,6 +78,65 @@ const getMongoFailureDetails = (error: unknown) => {
   };
 };
 
+const getDnsFailureCode = (error: unknown) => {
+  const code = readErrorProperty(error, 'code');
+  return typeof code === 'string' && /^[A-Z0-9_-]+$/i.test(code) ? code : 'unknown';
+};
+
+const runDnsCheck = async (operation: () => Promise<unknown[]>) => {
+  let timeout: NodeJS.Timeout | undefined;
+  try {
+    const records = await Promise.race([
+      operation(),
+      new Promise<never>((_resolve, reject) => {
+        timeout = setTimeout(() => {
+          const error = new Error('DNS diagnostic timed out') as NodeJS.ErrnoException;
+          error.code = 'DNS_DIAGNOSTIC_TIMEOUT';
+          reject(error);
+        }, 3000);
+      }),
+    ]);
+    return { ok: true as const, records };
+  } catch (error) {
+    return { ok: false as const, error };
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+};
+
+const logDnsCheck = async (label: string, operation: () => Promise<unknown[]>) => {
+  const result = await runDnsCheck(operation);
+  if (result.ok) {
+    console.info(`MongoDB DNS ${label}: resolved (${result.records.length} record(s)).`);
+    return;
+  }
+
+  const code = getDnsFailureCode(result.error);
+  if (label === 'TXT lookup' && code === 'ENODATA') {
+    console.info('MongoDB DNS TXT lookup: no optional TXT records.');
+    return;
+  }
+  console.warn(`MongoDB DNS ${label}: failed (code=${code}).`);
+};
+
+const diagnoseMongoDns = async () => {
+  const { protocol, hostname } = config.mongoUriMetadata;
+  if (!hostname) {
+    console.warn('MongoDB DNS diagnostics skipped: URI does not contain a valid hostname.');
+    return;
+  }
+
+  if (protocol === 'mongodb+srv:') {
+    await Promise.all([
+      logDnsCheck('SRV lookup', () => resolveSrv(`_mongodb._tcp.${hostname}`)),
+      logDnsCheck('TXT lookup', () => resolveTxt(hostname)),
+    ]);
+    return;
+  }
+
+  await logDnsCheck('address lookup', async () => lookup(hostname, { all: true }));
+};
+
 const startServer = async () => {
   try {
     console.info(
@@ -80,10 +144,10 @@ const startServer = async () => {
       + `(source: ${config.mongoUriSource}${config.mongoUriOverridden ? ', process environment overrides apps/backend/.env' : ''}).`,
     );
     if (config.mongoConfigured) {
-      const { valid, hostname, database } = config.mongoUriMetadata;
+      const { valid, protocol, hostname } = config.mongoUriMetadata;
       console.info(
-        `MongoDB target: valid=${valid}; host=${hostname || '(missing)'}; `
-        + `database=${database || '(default)'}.`,
+        `MongoDB target: valid=${valid}; scheme=${protocol || '(unknown)'}; `
+        + `host=${hostname || '(missing)'}.`,
       );
     }
 
@@ -99,6 +163,7 @@ const startServer = async () => {
         } else {
           console.error(`MongoDB connection failed (category=${category}, type=${type}, code=${code}). Check the URI format, Atlas cluster state, network access, and TLS connectivity. Refusing to start with temporary memory storage.`);
         }
+        await diagnoseMongoDns();
         process.exit(1);
       }
       const errorType = error instanceof Error ? error.name : 'UnknownError';

@@ -37,7 +37,7 @@ const frontendOrigins = frontendUrl
   : ['http://localhost:5173', 'http://localhost:4173'];
 
 const getMongoUriMetadata = (uri: string) => {
-  if (!uri) return { valid: false, hostname: '', database: '' };
+  if (!uri) return { valid: false, protocol: '', hostname: '' };
 
   try {
     const parsed = new URL(uri);
@@ -45,11 +45,11 @@ const getMongoUriMetadata = (uri: string) => {
     return {
       valid: ['mongodb:', 'mongodb+srv:'].includes(parsed.protocol)
         && Boolean(parsed.hostname),
+      protocol: parsed.protocol,
       hostname: parsed.hostname,
-      database: decodeURIComponent(parsed.pathname.slice(1).split('/')[0].split('?')[0]),
     };
   } catch {
-    return { valid: false, hostname: '', database: '' };
+    return { valid: false, protocol: '', hostname: '' };
   }
 };
 
